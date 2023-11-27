@@ -68,5 +68,5 @@ DATASETS=(
   openml__visualizing_environmental__3602
   openml__visualizing_livestock__3731
   openml__walking-activity__9945
-  openml__yeast__145793
+  # openml__yeast__145793
 )
