@@ -1,6 +1,6 @@
 all_models = ["LinearModel", "KNN", "DecisionTree", "RandomForest", "XGBoost", "CatBoost", "LightGBM", "ModelTree",
               "MLP", "TabNet", "VIME", "TabTransformer", "NODE", "DeepGBM", "RLN", "DNFNet", "STG", "NAM", "DeepFM",
-              "SAINT", "DANet"]
+              "SAINT", "DANet", "LinearMixtureRegressorSTG"]
 
 
 def str2model(model):
@@ -91,6 +91,10 @@ def str2model(model):
 
     elif model == "DANet":
         from models.danet import DANet
+        return DANet
+    
+    elif model == "LinearMixtureRegressorSTG":
+        from models.linear_mixture_regressor_stg import LinearMixtureRegressorSTG
         return DANet
 
     else:
