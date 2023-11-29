@@ -1,7 +1,9 @@
-import six
-import itertools
 import collections
+import itertools
 import json
+
+import six
+
 
 def map_exec(func, *iterables):
     return list(map(func, *iterables))
@@ -76,7 +78,8 @@ class GroupMeters(object):
     def format(self, caption, values, kv_format, glue):
         meters_kv = self._canonize_values(values)
         log_str = [caption]
-        log_str.extend(itertools.starmap(kv_format.format, sorted(meters_kv.items())))
+        log_str.extend(itertools.starmap(
+            kv_format.format, sorted(meters_kv.items())))
         return glue.join(log_str)
 
     def format_simple(self, caption, values='avg', compressed=True):
@@ -88,8 +91,9 @@ class GroupMeters(object):
     def dump(self, filename, values='avg'):
         meters_kv = self._canonize_values(values)
         with open(filename, 'a') as f:
-            #f.write(io.dumps_json(meters_kv, compressed=False))
-            f.write(json.dumps(meters_kv, cls=JsonObjectEncoder, sort_keys=True, indent=4, separators=(',', ': ')))
+            # f.write(io.dumps_json(meters_kv, compressed=False))
+            f.write(json.dumps(meters_kv, cls=JsonObjectEncoder,
+                    sort_keys=True, indent=4, separators=(',', ': ')))
             f.write('\n')
 
     def _canonize_values(self, values):
@@ -111,7 +115,8 @@ class JsonObjectEncoder(json.JSONEncoder):
                 return json_object
             return self.encode(json_object)
         else:
-            raise TypeError("Object of type '%s' is not JSON serializable." % obj.__class__.__name__)
+            raise TypeError(
+                "Object of type '%s' is not JSON serializable." % obj.__class__.__name__)
 
         if hasattr(obj, '__dict__'):
             d = dict(

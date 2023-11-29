@@ -1,15 +1,18 @@
+import collections
+import copy
+import math
+import os
+from collections import defaultdict
+
+import h5py
+import numpy as np
+import six
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np 
-import six
-import collections
-import copy
-from torch.utils.data import Dataset
-from collections import defaultdict
-import h5py
 from scipy.stats import norm
-import os
+from sklearn.datasets import make_moons
+from torch.utils.data import Dataset
 
 SKIP_TYPES = six.string_types
 
@@ -20,16 +23,17 @@ class SimpleDataset(Dataset):
      with X.shape = (n_samples, n_features) 
           y.shape = (n_samples,)
     '''
+
     def __init__(self, X, y=None):
         self.X = X
         self.y = y
-    
+
     def __len__(self):
         return (len(self.X))
 
     def __getitem__(self, i):
         data = self.X[i]
-        #data = np.array(data).astype(np.float32)
+        # data = np.array(data).astype(np.float32)
         if self.y is not None:
             return dict(input=data, label=self.y[i])
         else:
@@ -43,6 +47,7 @@ class FastTensorDataLoader:
     the dataset and calls cat (slow).
     Source: https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
     """
+
     def __init__(self, *tensors, tensor_names, batch_size=32, shuffle=False):
         """
         Initialize a FastTensorDataLoader.
@@ -79,16 +84,18 @@ class FastTensorDataLoader:
             raise StopIteration
         batch = {}
         for k in range(len(self.tensor_names)):
-            batch.update({self.tensor_names[k]: self.tensors[k][self.i:self.i+self.batch_size]})
+            batch.update(
+                {self.tensor_names[k]: self.tensors[k][self.i:self.i+self.batch_size]})
         self.i += self.batch_size
         return batch
-        
 
     def __len__(self):
         return self.n_batches
 
 
 '''standardize_dataset function is from utils_jared.py'''
+
+
 def standardize_dataset(dataset, offset, scale):
     norm_ds = copy.deepcopy(dataset)
     norm_ds['x'] = (norm_ds['x'] - offset) / scale
@@ -96,6 +103,8 @@ def standardize_dataset(dataset, offset, scale):
 
 
 '''load_datasets function is from utils_jared.py'''
+
+
 def load_datasets(dataset_file):
     datasets = defaultdict(dict)
     with h5py.File(dataset_file, 'r') as fp:
@@ -105,9 +114,10 @@ def load_datasets(dataset_file):
 
     return datasets
 
+
 def load_cox_gaussian_data():
-    dataset_file = os.path.join(os.path.dirname(__file__), 
-        'datasets/gaussian_survival_data.h5')
+    dataset_file = os.path.join(os.path.dirname(__file__),
+                                'datasets/gaussian_survival_data.h5')
     datasets = defaultdict(dict)
     with h5py.File(dataset_file, 'r') as fp:
         for ds in fp:
@@ -116,9 +126,10 @@ def load_cox_gaussian_data():
 
     return datasets
 
+
 def prepare_data(x, label):
     if isinstance(label, dict):
-       e, t = label['e'], label['t']
+        e, t = label['e'], label['t']
 
     # Sort training data for accurate partial likelihood calculation.
     sort_idx = np.argsort(t)[::-1]
@@ -126,9 +137,10 @@ def prepare_data(x, label):
     e = e[sort_idx]
     t = t[sort_idx]
 
-    #return x, {'e': e, 't': t} this is for parse_data(x, label); see the third line in the parse_data function. 
-    #return {'x': x, 'e': e, 't': t}
+    # return x, {'e': e, 't': t} this is for parse_data(x, label); see the third line in the parse_data function.
+    # return {'x': x, 'e': e, 't': t}
     return x, e, t
+
 
 def probe_infnan(v, name, extras={}):
     nps = torch.isnan(v)
@@ -147,6 +159,7 @@ class Identity(nn.Module):
         if len(args) == 1:
             return args[0]
         return args
+
 
 def get_batcnnorm(bn, nr_features=None, nr_dims=1):
     if isinstance(bn, nn.Module):
@@ -207,7 +220,7 @@ def get_optimizer(optimizer, model, *args, **kwargs):
         except AttributeError:
             raise ValueError('Unknown optimizer type: {}.'.format(optimizer))
     return optimizer(filter(lambda p: p.requires_grad, model.parameters()), *args, **kwargs)
-    
+
 
 def stmap(func, iterable):
     if isinstance(iterable, six.string_types):
@@ -277,41 +290,37 @@ def as_cpu(obj):
     return stmap(_as_cpu, obj)
 
 
-## For synthetic dataset creation
-import math
-from sklearn.datasets import make_moons
-from scipy.stats import norm
+# For synthetic dataset creation
 
 
 # Create a simple dataset
 def create_twomoon_dataset(n, p):
-    relevant, y = make_moons(n_samples=n, shuffle=True, noise=0.1, random_state=None)
+    relevant, y = make_moons(n_samples=n, shuffle=True,
+                             noise=0.1, random_state=None)
     print(y.shape)
-    noise_vector = norm.rvs(loc=0, scale=1, size=[n,p-2])
+    noise_vector = norm.rvs(loc=0, scale=1, size=[n, p-2])
     data = np.concatenate([relevant, noise_vector], axis=1)
     print(data.shape)
     return data, y
 
 
-def create_sin_dataset(n,p):
-    x1=5*(np.random.uniform(0,1,n)).reshape(-1,1)
-    x2=5*(np.random.uniform(0,1,n)).reshape(-1,1)
-    y=np.sin(x1)*np.cos(x2)**3
-    relevant=np.hstack((x1,x2))
-    noise_vector = norm.rvs(loc=0, scale=1, size=[n,p-2])
+def create_sin_dataset(n, p):
+    x1 = 5*(np.random.uniform(0, 1, n)).reshape(-1, 1)
+    x2 = 5*(np.random.uniform(0, 1, n)).reshape(-1, 1)
+    y = np.sin(x1)*np.cos(x2)**3
+    relevant = np.hstack((x1, x2))
+    noise_vector = norm.rvs(loc=0, scale=1, size=[n, p-2])
     data = np.concatenate([relevant, noise_vector], axis=1)
     return data, y.astype(np.float32)
-
 
 
 def create_simple_sin_dataset(n, p):
     '''This dataset was added to provide an example of L1 norm reg failure for presentation.
     '''
     assert p == 2
-    x1 = np.random.uniform(-math.pi, math.pi, n).reshape(n ,1)
+    x1 = np.random.uniform(-math.pi, math.pi, n).reshape(n, 1)
     x2 = np.random.uniform(-math.pi, math.pi, n).reshape(n, 1)
     y = np.sin(x1)
     data = np.concatenate([x1, x2], axis=1)
     print("data.shape: {}".format(data.shape))
     return data, y
-    
