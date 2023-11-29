@@ -5,7 +5,7 @@ import numpy as np
 from torch.autograd import Variable
 
 
-from .layers import MLPLayer, FeatureSelector, GatingLayer
+from .stg_layers import MLPLayer, FeatureSelector, GatingLayer
 from .losses import PartialLogLikelihood
 
 __all__ = ['MLPModel', 'MLPRegressionModel', 'MLPClassificationModel',
@@ -177,7 +177,7 @@ class STGClassificationModel(MLPModel, ModelIOKeysMixin):
 class LinearMixtureRegressorSTGModel(MLPModel, ModelIOKeysMixin):
     def __init__(self,
                  input_dim,
-                 nr_classes,
+                 output_dim,
                  hidden_dims,
                  device,
                  batch_norm=None,
@@ -187,7 +187,7 @@ class LinearMixtureRegressorSTGModel(MLPModel, ModelIOKeysMixin):
                  lam=0.1
                  ):
         super().__init__(input_dim=input_dim,
-                         output_dim=nr_classes,
+                         output_dim=output_dim,
                          hidden_dims=hidden_dims,
                          batch_norm=batch_norm,
                          dropout=dropout,

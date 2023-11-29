@@ -28,17 +28,13 @@ class LinearMixtureSTG(BaseModelTorch):
         out_dim = 2 if self.args.objective == "binary" else self.args.num_classes
 
         self.model = LMRSTGModel(
-            task_type=task,
             input_dim=self.args.num_features,
+            hidden_dims=self.params['hidden_dims'],
             output_dim=out_dim,
             activation="tanh",
             sigma=0.5,
-            optimizer="SGD",
-            feature_selection=True,
-            random_state=1,
+            lam=self.params['lam'],
             device=self.device,
-            batch_size=self.args.batch_size,
-            **self.params
         )  # hidden_dims=[500, 50, 10],
 
     def fit(self, X, y, X_val=None, y_val=None):
@@ -92,13 +88,13 @@ class LinearMixtureSTG(BaseModelTorch):
     # TabZilla: add function for seeded random params and default params
     @classmethod
     def get_random_parameters(cls, seed):
+        np.random.seed(seed=seed)
+
         rs = np.random.RandomState(seed)
         params = {
             "learning_rate": np.power(10, rs.uniform(-4, -1)),
             "lam": np.power(10, rs.uniform(-3, 1)),
-            "hidden_dims": rs.choice(
-                [[500, 50, 10], [60, 20], [500, 500, 10], [500, 400, 20]]
-            ),
+            "hidden_dims": [[500, 50, 10], [60, 20], [500, 500, 10], [500, 400, 20]][np.random.choice(np.arange(4))],
         }
         return params
 
