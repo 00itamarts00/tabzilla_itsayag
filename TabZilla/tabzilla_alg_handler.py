@@ -139,6 +139,12 @@ def STG():
 
     return model
 
+@register_model
+def LinearMixtureSTG():
+    from models.linear_mixture_stg import LinearMixtureSTG as model
+
+    return model
+
 
 @register_model
 def NAM():

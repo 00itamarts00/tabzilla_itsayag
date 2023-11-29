@@ -16,7 +16,7 @@ set -e
 ###############################################################################################################
 
 # run from this directory
-cd /home/shared/tabzilla/TabZilla
+cd /Users/itamar/git/thesis-nn-compression/submodules/tabzilla_itsayag/TabZilla
 
 #############################################
 # make sure environment variables are defined

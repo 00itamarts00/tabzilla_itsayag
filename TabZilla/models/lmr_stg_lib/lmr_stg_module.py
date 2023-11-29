@@ -82,8 +82,16 @@ class LinearMixtureSTGModule(object):
         self.task_type = task_type
         self.extra_args = extra_args
         self.freeze_onward = freeze_onward
-        self._model = self.build_model(input_dim, output_dim, hidden_dims, activation, sigma, lam,
-                                       task_type, feature_selection)
+        
+        self._model = self.build_model(input_dim=input_dim,
+                                       output_dim=output_dim,
+                                       hidden_dims=hidden_dims,
+                                       activation=activation,
+                                       sigma=sigma,
+                                       lam=lam,
+                                       task_type=task_type,
+                                       feature_selection=feature_selection)
+        
         self._model.apply(self.init_weights)
         self._model = self._model.to(device)
         self._optimizer = get_optimizer(
