@@ -117,8 +117,7 @@ class ConcreteLayer(nn.Module):
 
     def forward(self, x, logits, epoch=None):
         self.logits = logits
-        uniform_pdfs = Uniform(
-            low=1e-6, high=1.).sample(self.logits.size()).to(x.device)
+        uniform_pdfs = Uniform(low=1e-6, high=1.).sample(self.logits.size()).to(x.device)
         gumbel = -torch.log(-torch.log(uniform_pdfs))
 
         if self.training:

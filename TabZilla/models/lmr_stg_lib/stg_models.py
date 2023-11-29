@@ -8,7 +8,8 @@ from torch.autograd import Variable
 from .layers import MLPLayer, FeatureSelector, GatingLayer
 from .losses import PartialLogLikelihood
 
-__all__ = ['MLPModel', 'MLPRegressionModel', 'MLPClassificationModel', 'LinearRegressionModel', 'LinearClassificationModel']
+__all__ = ['MLPModel', 'MLPRegressionModel', 'MLPClassificationModel',
+           'LinearRegressionModel', 'LinearClassificationModel', 'LinearMixtureRegressorSTGModel']
 
 
 class ModelIOKeysMixin(object):
@@ -44,7 +45,7 @@ class MLPModel(MLPLayer):
         if mode == 'raw':
             return self.mu.detach().cpu().numpy()
         elif mode == 'prob':
-            return np.minimum(1.0, np.maximum(0.0, self.mu.detach().cpu().numpy() + 0.5)) 
+            return np.minimum(1.0, np.maximum(0.0, self.mu.detach().cpu().numpy() + 0.5))
         else:
             raise NotImplementedError()
 
@@ -61,7 +62,7 @@ class L1RegressionModel(MLPModel, ModelIOKeysMixin):
         pred = super().forward(self._get_input(feed_dict))
         if self.training:
             loss = self.loss(pred, self._get_label(feed_dict))
-            reg = torch.mean(torch.abs(self.mlp[0][0].weight)) 
+            reg = torch.mean(torch.abs(self.mlp[0][0].weight))
             total_loss = loss + self.lam * reg
             return total_loss, dict(), dict()
         else:
@@ -113,7 +114,7 @@ class SoftThreshRegressionModel(MLPModel, ModelIOKeysMixin):
         pred = super().forward(self._get_input(feed_dict))
         if self.training:
             loss = self.loss(pred, self._get_label(feed_dict))
-            total_loss = loss 
+            total_loss = loss
             return total_loss, dict(), dict()
         else:
             return self._compose_output(pred)
@@ -126,7 +127,7 @@ class STGRegressionModel(MLPModel, ModelIOKeysMixin):
                          batch_norm=batch_norm, dropout=dropout, activation=activation)
         self.FeatureSelector = FeatureSelector(input_dim, sigma, device)
         self.loss = nn.MSELoss()
-        self.reg = self.FeatureSelector.regularizer 
+        self.reg = self.FeatureSelector.regularizer
         self.lam = lam
         self.mu = self.FeatureSelector.mu
         self.sigma = self.FeatureSelector.sigma
@@ -136,12 +137,12 @@ class STGRegressionModel(MLPModel, ModelIOKeysMixin):
         pred = super().forward(x)
         if self.training:
             loss = self.loss(pred, self._get_label(feed_dict))
-            reg = torch.mean(self.reg((self.mu + 0.5)/self.sigma)) 
+            reg = torch.mean(self.reg((self.mu + 0.5)/self.sigma))
             total_loss = loss + self.lam * reg
             return total_loss, dict(), dict()
         else:
             return self._compose_output(pred)
-    
+
 
 class STGClassificationModel(MLPModel, ModelIOKeysMixin):
     def __init__(self, input_dim, nr_classes, hidden_dims, device, batch_norm=None, dropout=None, activation='relu',
@@ -152,18 +153,18 @@ class STGClassificationModel(MLPModel, ModelIOKeysMixin):
         self.softmax = nn.Softmax()
         self.loss = nn.CrossEntropyLoss()
         self.reg = self.FeatureSelector.regularizer
-        self.lam = lam 
+        self.lam = lam
         self.mu = self.FeatureSelector.mu
         self.sigma = self.FeatureSelector.sigma
-        
+
     def forward(self, feed_dict):
         x = self.FeatureSelector(self._get_input(feed_dict))
         logits = super().forward(x)
         if self.training:
             loss = self.loss(logits, self._get_label(feed_dict))
-            reg = torch.mean(self.reg((self.mu + 0.5)/self.sigma)) 
-            total_loss = loss + self.lam * reg 
-            return total_loss, dict(), dict() 
+            reg = torch.mean(self.reg((self.mu + 0.5)/self.sigma))
+            total_loss = loss + self.lam * reg
+            return total_loss, dict(), dict()
         else:
             return self._compose_output(logits)
 
@@ -173,8 +174,54 @@ class STGClassificationModel(MLPModel, ModelIOKeysMixin):
         return dict(prob=value, pred=pred, logits=logits)
 
 
+class LinearMixtureRegressorSTGModel(MLPModel, ModelIOKeysMixin):
+    def __init__(self,
+                 input_dim,
+                 nr_classes,
+                 hidden_dims,
+                 device,
+                 batch_norm=None,
+                 dropout=None,
+                 activation='relu',
+                 sigma=1.0,
+                 lam=0.1
+                 ):
+        super().__init__(input_dim=input_dim,
+                         output_dim=nr_classes,
+                         hidden_dims=hidden_dims,
+                         batch_norm=batch_norm,
+                         dropout=dropout,
+                         activation=activation)
+
+        self.gating_net = FeatureSelector(input_dim, sigma, device)
+        self.softmax = nn.Softmax()
+        self.loss = nn.CrossEntropyLoss()
+        self.reg = self.gating_net.regularizer
+        self.lam = lam
+        self.mu = self.gating_net.mu
+        self.sigma = self.gating_net.sigma
+
+    def forward(self, feed_dict):
+        x = self._get_input(feed_dict)
+        y = self._get_label(feed_dict)
+        x = super().forward(x)
+        x = self.gating_net(x)
+        if self.training:
+            loss = self.loss(x, y)
+            reg_loss = torch.mean(self.reg((self.mu + 0.5) / self.sigma))
+            loss += self.lam * reg_loss
+            return loss, dict(), dict()
+        else:
+            return self._compose_output(x)
+
+    def _compose_output(self, logits):
+        value = self.softmax(logits)
+        _, pred = value.max(dim=1)
+        return dict(prob=value, pred=pred, logits=logits)
+
+
 class STGCoxModel(MLPModel, ModelIOKeysMixin):
-    #TODO: Finish impl cox model.
+    # TODO: Finish impl cox model.
     def __init__(self, input_dim, nr_classes, hidden_dims, device, lam, batch_norm=None, dropout=None, activation='relu',
                  sigma=1.0):
         super().__init__(input_dim, nr_classes, hidden_dims,
@@ -183,7 +230,7 @@ class STGCoxModel(MLPModel, ModelIOKeysMixin):
         self.loss = PartialLogLikelihood
         self.noties = 'noties'
         self.lam = lam
-        self.reg = self.FeatureSelector.regularizer 
+        self.reg = self.FeatureSelector.regularizer
         self.mu = self.FeatureSelector.mu
         self.sigma = self.FeatureSelector.sigma
 
@@ -191,9 +238,10 @@ class STGCoxModel(MLPModel, ModelIOKeysMixin):
         x = self.FeatureSelector(self._get_covariate(feed_dict))
         logits = super().forward(x)
         if self.training:
-            loss = self.loss(logits, self._get_fail_indicator(feed_dict), self.noties)
-            reg = torch.sum(self.reg((self.mu + 0.5)/self.sigma)) 
-            total_loss = loss + reg 
+            loss = self.loss(logits, self._get_fail_indicator(
+                feed_dict), self.noties)
+            reg = torch.sum(self.reg((self.mu + 0.5)/self.sigma))
+            total_loss = loss + reg
             return total_loss, logits, dict()
         else:
             return self._compose_output(logits)
@@ -206,13 +254,14 @@ class MLPCoxModel(MLPModel, ModelIOKeysMixin):
     def __init__(self, input_dim, nr_classes, hidden_dims, batch_norm=None, dropout=None, activation='relu'):
         super().__init__(input_dim, nr_classes, hidden_dims,
                          batch_norm=batch_norm, dropout=dropout, activation=activation)
-        self.loss = PartialLogLikelihood 
+        self.loss = PartialLogLikelihood
         self.noties = 'noties'
 
     def forward(self, feed_dict):
         logits = super().forward(self._get_covariate(feed_dict))
         if self.training:
-            loss = self.loss(logits, self._get_fail_indicator(feed_dict), self.noties)
+            loss = self.loss(logits, self._get_fail_indicator(
+                feed_dict), self.noties)
             return loss, logits, dict()
         else:
             return self._compose_output(logits)
@@ -265,7 +314,3 @@ class LinearRegressionModel(MLPRegressionModel):
 class LinearClassificationModel(MLPClassificationModel):
     def __init__(self, input_dim, nr_classes):
         super().__init__(input_dim, nr_classes, [])
-
-
-
-    
